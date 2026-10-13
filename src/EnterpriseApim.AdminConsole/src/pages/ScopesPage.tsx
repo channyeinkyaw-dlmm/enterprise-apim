@@ -59,9 +59,9 @@ export function ScopesPage() {
                     <code>{s.name}</code>
                     {s.description && <span className="cell-note">{s.description}</span>}
                   </td>
-                  <td className="num">{s.routeCount}</td>
-                  <td className="num">{s.activeKeyCount}</td>
-                  <td>{formatDate(s.createdAt)}</td>
+                  <td data-label="Routes" className="num">{s.routeCount}</td>
+                  <td data-label="Active keys" className="num">{s.activeKeyCount}</td>
+                  <td data-label="Added">{formatDate(s.createdAt)}</td>
                   <td className="actions">
                     <button type="button" className="button" onClick={() => setEditing(s)}>
                       Edit

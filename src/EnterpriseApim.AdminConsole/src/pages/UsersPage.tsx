@@ -66,11 +66,11 @@ export function UsersPage({ currentUserId }: { currentUserId: string }) {
                       {u.username}
                       {isMe && <span className="cell-note">You</span>}
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <StatusPill user={u} />
                     </td>
-                    <td>{u.lastSignInAt ? timeAgo(u.lastSignInAt) : <span className="muted">Never</span>}</td>
-                    <td>{formatDate(u.createdAt)}</td>
+                    <td data-label="Last sign-in">{u.lastSignInAt ? timeAgo(u.lastSignInAt) : <span className="muted">Never</span>}</td>
+                    <td data-label="Added">{formatDate(u.createdAt)}</td>
                     <td className="actions">
                       {!isMe && (
                         <>

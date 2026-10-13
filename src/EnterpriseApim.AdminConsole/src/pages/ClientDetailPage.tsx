@@ -133,10 +133,10 @@ export function ClientDetailPage({ id }: { id: string }) {
                       {k.name}
                       <span className="cell-note">Issued {formatDate(k.createdAt)}</span>
                     </td>
-                    <td>
+                    <td data-label="Key ID">
                       <code>{k.keyId}</code>
                     </td>
-                    <td>
+                    <td data-label="Scopes">
                       {k.scopes.length === 0 ? (
                         <span className="muted">None</span>
                       ) : (
@@ -147,13 +147,13 @@ export function ClientDetailPage({ id }: { id: string }) {
                         </span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <KeyStatusPill status={k.status} />
                     </td>
-                    <td title={formatDateTime(k.lastUsedAt)}>
+                    <td data-label="Last used" title={formatDateTime(k.lastUsedAt)}>
                       {k.lastUsedAt ? timeAgo(k.lastUsedAt) : <span className="muted">Never</span>}
                     </td>
-                    <td>{k.expiresAt ? formatDate(k.expiresAt) : <span className="muted">Never</span>}</td>
+                    <td data-label="Expires">{k.expiresAt ? formatDate(k.expiresAt) : <span className="muted">Never</span>}</td>
                     <td className="actions">
                       {k.status !== 'revoked' && (
                         <button

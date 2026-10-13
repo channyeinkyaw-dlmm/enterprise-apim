@@ -95,16 +95,16 @@ export function RoutesPage() {
                       {r.description ? `: ${r.description}` : ''}
                     </span>
                   </td>
-                  <td>{r.methods.length ? r.methods.join(', ') : 'All'}</td>
-                  <td>
+                  <td data-label="Methods">{r.methods.length ? r.methods.join(', ') : 'All'}</td>
+                  <td data-label="Who can call">
                     <AccessPill route={r} />
                   </td>
-                  <td>
+                  <td data-label="Backend">
                     <a href="#/backends">
                       <code>{r.clusterId}</code>
                     </a>
                   </td>
-                  <td>{r.isEnabled ? 'Live' : 'Off'}</td>
+                  <td data-label="State">{r.isEnabled ? 'Live' : 'Off'}</td>
                   <td className="actions">
                     <button type="button" className="button button--small" onClick={() => setEditing(r)}>
                       Edit

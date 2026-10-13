@@ -51,6 +51,9 @@ function Shell(props: { user: CurrentUser; onUserChanged: (user: CurrentUser) =>
   const notify = useToast();
   const [reloading, setReloading] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  // On small screens the navigation folds into a menu; close it whenever the page changes.
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => setMenuOpen(false), [view]);
 
   const reload = async () => {
     setReloading(true);
@@ -66,38 +69,51 @@ function Shell(props: { user: CurrentUser; onUserChanged: (user: CurrentUser) =>
 
   return (
     <div className="shell">
-      <nav className="rail" aria-label="Main">
-        <a className="brand" href="#/clients">
-          Enterprise APIM
-        </a>
-        <ul className="rail__nav">
-          {NAV.map((item) => (
-            <li key={item.href}>
-              <a href={item.href} aria-current={item.active(view) ? 'page' : undefined}>
-                {item.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-        <div className="rail__foot">
+      <nav className={`rail${menuOpen ? ' rail--open' : ''}`} aria-label="Main">
+        <div className="rail__top">
+          <a className="brand" href="#/clients">
+            Enterprise APIM
+          </a>
           <button
             type="button"
-            className="rail__action"
-            onClick={reload}
-            disabled={reloading}
-            title="Changes apply automatically. Use this if a gateway seems out of date."
+            className="rail__menu"
+            aria-expanded={menuOpen}
+            aria-controls="rail-body"
+            onClick={() => setMenuOpen((open) => !open)}
           >
-            {reloading ? 'Reloading…' : 'Reload gateways'}
+            {menuOpen ? 'Close' : 'Menu'}
           </button>
-          <span className="rail__user" title="Signed in as">
-            {props.user.username}
-          </span>
-          <button type="button" className="rail__action" onClick={() => setChangingPassword(true)}>
-            Change password
-          </button>
-          <button type="button" className="rail__action" onClick={props.onSignOut}>
-            Sign out
-          </button>
+        </div>
+        <div className="rail__body" id="rail-body">
+          <ul className="rail__nav">
+            {NAV.map((item) => (
+              <li key={item.href}>
+                <a href={item.href} aria-current={item.active(view) ? 'page' : undefined}>
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div className="rail__foot">
+            <button
+              type="button"
+              className="rail__action"
+              onClick={reload}
+              disabled={reloading}
+              title="Changes apply automatically. Use this if a gateway seems out of date."
+            >
+              {reloading ? 'Reloading…' : 'Reload gateways'}
+            </button>
+            <span className="rail__user" title="Signed in as">
+              {props.user.username}
+            </span>
+            <button type="button" className="rail__action" onClick={() => setChangingPassword(true)}>
+              Change password
+            </button>
+            <button type="button" className="rail__action" onClick={props.onSignOut}>
+              Sign out
+            </button>
+          </div>
         </div>
       </nav>
 

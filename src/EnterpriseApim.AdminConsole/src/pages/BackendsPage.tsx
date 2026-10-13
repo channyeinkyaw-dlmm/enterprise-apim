@@ -77,7 +77,7 @@ export function BackendsPage() {
                   <td>
                     <code>{c.id}</code>
                   </td>
-                  <td>
+                  <td data-label="Servers">
                     <ul className="server-list">
                       {c.destinations.map((d) => (
                         <li key={d.name}>
@@ -86,8 +86,8 @@ export function BackendsPage() {
                       ))}
                     </ul>
                   </td>
-                  <td>{policyLabel(c.loadBalancingPolicy)}</td>
-                  <td>
+                  <td data-label="Load balancing">{policyLabel(c.loadBalancingPolicy)}</td>
+                  <td data-label="Health check">
                     {c.healthCheckEnabled ? (
                       <>
                         Every {c.healthCheckIntervalSeconds ?? 15}s on <code>{c.healthCheckPath ?? '/health'}</code>
@@ -96,7 +96,7 @@ export function BackendsPage() {
                       <span className="muted">Off</span>
                     )}
                   </td>
-                  <td className="num">{c.routeCount}</td>
+                  <td data-label="Routes" className="num">{c.routeCount}</td>
                   <td className="actions">
                     <button type="button" className="button button--small" onClick={() => setEditing(c)}>
                       Edit

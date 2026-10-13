@@ -160,6 +160,17 @@ code,
   display: block;
 }
 
+.rail__menu {
+  display: none;
+}
+
+.rail__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .rail__nav {
   list-style: none;
   margin: 0;
@@ -224,9 +235,9 @@ code,
 }
 
 .main {
-  padding: 32px 40px 64px;
-  max-width: 1180px;
+  padding: 32px clamp(16px, 3vw, 48px) 64px;
   width: 100%;
+  min-width: 0;
 }
 
 /* ---------- Page header ---------- */
@@ -1098,33 +1109,51 @@ textarea.mono {
   }
 
   .rail {
-    position: static;
     height: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
+    padding: 8px 12px;
+    z-index: 40;
+  }
+
+  .rail__top {
+    display: flex;
     align-items: center;
-    gap: 4px 8px;
-    padding: 10px 12px;
+    justify-content: space-between;
+    gap: 12px;
   }
 
   .brand {
-    padding: 4px 8px;
+    padding: 8px;
   }
 
-  .rail__nav {
+  .rail__menu {
+    all: unset;
+    display: inline-block;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    border: 1px solid rgb(255 255 255 / 0.2);
+    color: var(--rail-ink-strong);
+    font-size: var(--step--1);
+    font-weight: 500;
+  }
+
+  .rail__menu:focus-visible {
+    outline: 2px solid #7fb0ff;
+  }
+
+  .rail__body {
+    display: none;
+  }
+
+  .rail--open .rail__body {
     display: flex;
-    gap: 2px;
-  }
-
-  .rail__nav a[aria-current='page'] {
-    box-shadow: inset 0 -2px 0 #7fb0ff;
+    padding: 8px 0 4px;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
   }
 
   .rail__foot {
-    margin: 0 0 0 auto;
-    display: flex;
-    border: 0;
-    padding: 0;
+    margin-top: 12px;
   }
 
   .main {
@@ -1155,6 +1184,90 @@ textarea.mono {
 
   .server-editor__name {
     grid-column: 1 / -1;
+  }
+}
+
+/* Medium screens: tighter cells so tables fit beside the content gutters without scrolling. */
+@media (max-width: 1024px) {
+  .table th,
+  .table td {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table tr {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .table td,
+  .table tbody tr:last-child td {
+    border: 0;
+    padding: 3px 0;
+  }
+
+  .table td:first-child {
+    padding-bottom: 8px;
+  }
+
+  .table td[data-label] {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .table td[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    color: var(--muted);
+    font-size: var(--step--1);
+    text-align: left;
+  }
+
+  .table td.num {
+    text-align: right;
+  }
+
+  .table .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 10px;
+    white-space: normal;
+  }
+
+  .table .actions:empty {
+    display: none;
+  }
+
+  .table .actions .button + .button {
+    margin-left: 0;
   }
 }
 

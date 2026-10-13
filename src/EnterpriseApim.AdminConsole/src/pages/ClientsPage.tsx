@@ -60,15 +60,15 @@ export function ClientsPage() {
                     </a>
                     {t.description && <span className="cell-note">{t.description}</span>}
                   </td>
-                  <td>{t.isActive ? <Pill tone="ok">Can call APIs</Pill> : <Pill tone="danger">Blocked</Pill>}</td>
-                  <td className="num">{t.activeKeyCount}</td>
-                  <td>{t.rateLimitPerMinute ? `${t.rateLimitPerMinute.toLocaleString()} / min` : 'No limit'}</td>
-                  <td>
+                  <td data-label="Status">{t.isActive ? <Pill tone="ok">Can call APIs</Pill> : <Pill tone="danger">Blocked</Pill>}</td>
+                  <td data-label="Active keys" className="num">{t.activeKeyCount}</td>
+                  <td data-label="Rate limit">{t.rateLimitPerMinute ? `${t.rateLimitPerMinute.toLocaleString()} / min` : 'No limit'}</td>
+                  <td data-label="IP restriction">
                     {t.allowedIpRanges.length === 0
                       ? 'Any IP'
                       : `${t.allowedIpRanges.length} range${t.allowedIpRanges.length === 1 ? '' : 's'}`}
                   </td>
-                  <td>{formatDate(t.createdAt)}</td>
+                  <td data-label="Added">{formatDate(t.createdAt)}</td>
                   <td className="actions">
                     <button
                       type="button"

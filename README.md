@@ -118,7 +118,7 @@ docker compose up --build     # .env sets COMPOSE_PROFILES=postgres
 
 PostgreSQL runs under the `postgres` [Compose profile](https://docs.docker.com/compose/how-tos/profiles/). `.env.example` turns it on with `COMPOSE_PROFILES=postgres`; without that line, pass `--profile postgres`. To use your own database, leave the profile off and set `APIM_DB_CONNECTION` in `.env` to its connection string.
 
-1. Create your admin console account. You're asked for a password (at least 12 characters, not containing the username):
+1. Create your admin console account. You're asked for a password (at least 12 characters, not containing the username). See [Seeding data](#seeding-data) for scripting and recovery.
    ```bash
    docker compose exec admin dotnet EnterpriseApim.AdminApi.dll create-admin admin
    ```
@@ -151,7 +151,7 @@ npm install
 npm run dev                                                 # :5173, proxies /api to :5080
 ```
 
-Development settings live in each project's `appsettings.Development.json`. Create your admin console account once per database:
+Development settings live in each project's `appsettings.Development.json`. Create your admin console account once per database (see [Seeding data](#seeding-data)):
 
 ```bash
 dotnet run --project src/EnterpriseApim.AdminApi -- create-admin admin
@@ -223,19 +223,89 @@ dotnet ef migrations has-pending-model-changes $EF    # fails if the model chang
 - The admin API refuses to start when the model has changes without a migration, so you notice before deploying.
 - A database created before migrations were introduced (by `EnsureCreated`) is detected on startup, and `InitialCreate` is recorded as already applied.
 
+## Seeding data
+
+A new database needs two things before you can use it: an **admin user** to sign in to the console, which you always create yourself, and optionally **demo data** to try the gateway with.
+
+### Seed the first admin user
+
+The admin API never creates admin users by itself. While there are none, it starts normally and logs a reminder, but nobody can sign in. Create the first one with the `create-admin` command. It runs the admin API's own code with its own configuration (connection string), applies pending migrations first, creates the user, and exits.
+
+| Where the admin API runs | Command |
+|---|---|
+| Docker Compose | `docker compose exec admin dotnet EnterpriseApim.AdminApi.dll create-admin <username>` |
+| Local `dotnet run` | `dotnet run --project src/EnterpriseApim.AdminApi -- create-admin <username>` |
+| Published app or any other container | `dotnet EnterpriseApim.AdminApi.dll create-admin <username>` (from the app's folder) |
+
+For example, with Docker Compose:
+
+```bash
+docker compose exec admin dotnet EnterpriseApim.AdminApi.dll create-admin admin
+```
+
+```text
+Password for admin: ************
+Repeat the password: ************
+Created admin user "admin". Sign in to the admin console with it.
+```
+
+- **Username:** 3 to 100 letters, digits, dots, dashes, underscores or `@`. Usernames aren't case-sensitive, so an email address works too.
+- **Password:** at least 12 characters, not containing the username. It's typed at a hidden prompt and never passed as an argument, so it doesn't end up in configuration, the process list or shell history.
+- The account is ready straight away; there's no forced password change. People you add later under **Admin users** in the console get a temporary password instead, which they replace at first sign-in.
+- Running the command for a username that already exists changes nothing and tells you to use `--reset`.
+
+#### Script it (CI, provisioning, Kubernetes jobs)
+
+When standard input is redirected, the command reads the password from its first line instead of prompting. With `docker compose exec`, add `-T` so no terminal is allocated:
+
+```bash
+printf '%s\n' "$APIM_ADMIN_PASSWORD" | docker compose exec -T admin dotnet EnterpriseApim.AdminApi.dll create-admin admin
+```
+
+```powershell
+$env:APIM_ADMIN_PASSWORD | docker compose exec -T admin dotnet EnterpriseApim.AdminApi.dll create-admin admin
+```
+
+To seed a database the admin API isn't running against yet, point the command at it with the connection string setting:
+
+```bash
+ConnectionStrings__Apim="Host=db.example.com;Database=apim;Username=apim;Password=..." \
+  dotnet EnterpriseApim.AdminApi.dll create-admin admin
+```
+
+Exit codes: `0` done, `1` nothing changed (the user exists, the password breaks a rule, or the passwords didn't match), `2` wrong arguments.
+
+#### Recover access (`--reset`)
+
+If every admin is locked out, disabled, or has forgotten their password, reset one from the command line:
+
+```bash
+docker compose exec admin dotnet EnterpriseApim.AdminApi.dll create-admin admin --reset
+```
+
+It sets the new password you type, unlocks and enables the account, and signs it out everywhere. It only works for a username that exists; leave out `--reset` to create one.
+
+### Seed demo data
+
+With `Apim:SeedDemo` set to `true`, the admin API adds sample data at startup if the database has no backends yet. Docker Compose and `appsettings.Development.json` turn it on; it's off by default everywhere else. It creates:
+
+| What | Details |
+|---|---|
+| Backend `sample-backend` | One server at `Apim:DemoBackendUrl` (the sample backend), health-checked on `/health` |
+| Scope `orders.read` | Used by the `orders` route |
+| Route `echo` | `/api/echo/{**catch-all}`, any client with a valid key |
+| Route `orders` | `/api/orders/{**catch-all}`, only keys with `orders.read` |
+| Route `public-status` | `/public/status`, public, no key needed |
+| Client **Contoso Ltd** | 600 requests a minute, no keys yet (only if there are no clients) |
+
+It never creates admin users or client keys, and it runs only once: as soon as any backend exists, it's skipped. Turn it off for real environments by leaving `Apim__SeedDemo` unset or setting it to `false`, for example by removing it from the `admin` service in `docker-compose.yml`.
+
 ## How it works
 
 ### Admin sign-in
 The console uses username and password sign-in with a session cookie, so there's no token for the browser to store or leak.
 
-- **First admin:** the admin API never creates accounts by itself; while there are none, it logs a reminder at startup. Create the first one with the `create-admin` command, which uses the admin API's own configuration (connection string) and applies pending migrations first:
-  ```bash
-  docker compose exec admin dotnet EnterpriseApim.AdminApi.dll create-admin <username>        # Docker
-  dotnet run --project src/EnterpriseApim.AdminApi -- create-admin <username>                 # local
-  dotnet EnterpriseApim.AdminApi.dll create-admin <username>                                  # published app
-  ```
-  It asks for the password at a hidden prompt, so it never appears in configuration, the process list or shell history. To script it, pipe the password on standard input instead, for example `printf '%s\n' "$PASSWORD" | docker compose exec -T admin dotnet EnterpriseApim.AdminApi.dll create-admin admin`.
-- **Locked out:** if every admin is locked, disabled or has forgotten their password, run the same command with `--reset` for an existing username. It sets a new password, unlocks and enables the account, and ends its sessions.
+- **First admin:** created from the command line with `create-admin`, never automatically. If everyone is locked out, the same command with `--reset` restores access. See [Seed the first admin user](#seed-the-first-admin-user).
 - **More admins:** add them under **Admin users** with a temporary password, which they replace at first sign-in. Every admin can add, disable, unlock, reset and delete other admins. Nobody can disable or delete themselves, so one active admin always remains.
 - **Passwords** are at least 12 characters, can't contain the username, and are stored as salted PBKDF2 hashes (ASP.NET Core Identity's `PasswordHasher`).
 - **Sessions** end on sign-out, after `Admin:SessionIdleMinutes` without activity, or `Admin:SessionMaxHours` after sign-in. They also end immediately when the user's password is changed or reset, or the user is disabled or deleted.
@@ -294,7 +364,8 @@ Per client (all of its keys together), set in the console. Requests without a va
 | `Admin:SessionMaxHours` | Admin | `12` | Sign out this long after sign-in, however active |
 | `Admin:MaxFailedSignIns` | Admin | `5` | Failed sign-ins in a row before the account locks |
 | `Admin:LockoutMinutes` | Admin | `15` | How long a locked account stays locked |
-| `Apim:SeedDemo` | Admin | `false` | Creates demo routes, backend and client on an empty database |
+| `Apim:SeedDemo` | Admin | `false` | Adds demo data on a database with no backends; see [Seed demo data](#seed-demo-data) |
+| `Apim:DemoBackendUrl` | Admin | `http://localhost:5100/` | Server address of the demo backend |
 | `Gateway:ConfigRefreshSeconds` | Gateway | `60` | Safety-net reload interval |
 | `Gateway:KeyCacheSeconds` | Gateway | `120` | Key lookup cache lifetime |
 | `Gateway:AnonymousRateLimitPerMinute` | Gateway | `120` | Per-IP limit without a valid key |
