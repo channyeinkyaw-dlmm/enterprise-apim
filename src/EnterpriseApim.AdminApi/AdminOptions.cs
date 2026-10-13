@@ -4,13 +4,6 @@ public sealed class AdminOptions
 {
     public const string Section = "Admin";
 
-    /// <summary>
-    /// First admin account, created only when the database has no admin users.
-    /// It must choose a new password at first sign-in; remove these settings afterwards.
-    /// </summary>
-    public string BootstrapUsername { get; set; } = "";
-    public string BootstrapPassword { get; set; } = "";
-
     /// <summary>A session ends after this many minutes without a request.</summary>
     public int SessionIdleMinutes { get; set; } = 60;
 

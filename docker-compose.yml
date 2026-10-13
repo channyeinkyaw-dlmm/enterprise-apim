@@ -27,8 +27,6 @@ services:
       dockerfile: src/EnterpriseApim.AdminApi/Dockerfile
     environment:
       ConnectionStrings__Apim: ${APIM_DB_CONNECTION:-Host=postgres;Database=apim;Username=apim;Password=${POSTGRES_PASSWORD:-apim-dev-password}}
-      Admin__BootstrapUsername: ${APIM_ADMIN_USERNAME:-admin}
-      Admin__BootstrapPassword: ${APIM_ADMIN_PASSWORD:-local-dev-password-change-me}
       Apim__SeedDemo: "true"
       Apim__DemoBackendUrl: http://sample-backend:8080/
     ports:

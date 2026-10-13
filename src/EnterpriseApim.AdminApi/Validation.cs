@@ -18,6 +18,9 @@ internal sealed class ValidationErrors
         list.Add(message);
     }
 
+    public IEnumerable<(string Field, string Message)> All =>
+        _errors.SelectMany(e => e.Value.Select(message => (e.Key, message)));
+
     public IResult ToResult() =>
         TypedResults.ValidationProblem(_errors.ToDictionary(e => e.Key, e => e.Value.ToArray()));
 }

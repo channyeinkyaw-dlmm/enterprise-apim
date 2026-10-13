@@ -1,7 +1,5 @@
 using System.Reflection;
-using EnterpriseApim.AdminApi.Auth;
 using EnterpriseApim.Core;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -10,13 +8,31 @@ namespace EnterpriseApim.AdminApi;
 public static class DatabaseInitializer
 {
     /// <summary>
-    /// Applies pending EF Core migrations, creates the first admin user if there is none, and optionally seeds demo routes.
+    /// Applies pending EF Core migrations and optionally seeds demo routes. Admin users are never created here;
+    /// see <see cref="AdminCommands"/>.
     /// </summary>
     public static async Task InitializeAsync(IServiceProvider services, IConfiguration configuration, ILogger logger)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApimDbContext>();
 
+        await MigrateAsync(db, logger);
+
+        if (!await db.AdminUsers.AnyAsync())
+        {
+            logger.LogWarning(
+                "There are no admin users yet, so nobody can sign in to the console. Create the first one with: " +
+                "{Command} (in Docker: docker compose exec admin dotnet EnterpriseApim.AdminApi.dll {Command})",
+                $"{AdminCommands.CreateAdmin} <username>", $"{AdminCommands.CreateAdmin} <username>");
+        }
+
+        if (configuration.GetValue<bool>("Apim:SeedDemo"))
+            await SeedDemoAsync(db, configuration, logger);
+    }
+
+    /// <summary>Applies pending migrations, waiting for the database to become reachable.</summary>
+    public static async Task MigrateAsync(ApimDbContext db, ILogger logger)
+    {
         const int maxAttempts = 30;
         for (var attempt = 1; ; attempt++)
         {
@@ -24,7 +40,7 @@ public static class DatabaseInitializer
             {
                 await BaselineEnsureCreatedSchemaAsync(db, logger);
                 await db.Database.MigrateAsync();
-                break;
+                return;
             }
             catch (NpgsqlException ex) when (ex.IsTransient && attempt < maxAttempts)
             {
@@ -33,49 +49,6 @@ public static class DatabaseInitializer
                 await Task.Delay(TimeSpan.FromSeconds(2));
             }
         }
-
-        await EnsureAdminUserAsync(db, scope.ServiceProvider, configuration, logger);
-
-        if (configuration.GetValue<bool>("Apim:SeedDemo"))
-            await SeedDemoAsync(db, configuration, logger);
-    }
-
-    /// <summary>Creates the bootstrap admin from Admin:BootstrapUsername/Password when no admin user exists.</summary>
-    private static async Task EnsureAdminUserAsync(ApimDbContext db, IServiceProvider services,
-        IConfiguration configuration, ILogger logger)
-    {
-        if (await db.AdminUsers.AnyAsync()) return;
-
-        var options = configuration.GetSection(AdminOptions.Section).Get<AdminOptions>() ?? new AdminOptions();
-        var username = AdminAuth.NormalizeUsername(options.BootstrapUsername);
-        var errors = new ValidationErrors();
-        AdminAuth.ValidateUsername(username, errors);
-        AdminAuth.ValidateNewPassword(options.BootstrapPassword, username, errors);
-        if (!errors.IsValid)
-        {
-            throw new InvalidOperationException(
-                "There are no admin users yet. Set Admin__BootstrapUsername and Admin__BootstrapPassword " +
-                $"(at least {AdminAuth.MinPasswordLength} characters, not containing the username) " +
-                "to create the first one.");
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        var user = new AdminUser
-        {
-            Id = Guid.CreateVersion7(),
-            Username = username,
-            SecurityStamp = AdminAuth.NewSecurityStamp(),
-            MustChangePassword = true,
-            CreatedAt = now,
-            UpdatedAt = now
-        };
-        user.PasswordHash = services.GetRequiredService<IPasswordHasher<AdminUser>>()
-            .HashPassword(user, options.BootstrapPassword);
-        db.AdminUsers.Add(user);
-        await db.SaveChangesAsync();
-        logger.LogInformation(
-            "Created admin user {Username}. Sign in and choose a new password, then remove the bootstrap settings",
-            username);
     }
 
     /// <summary>

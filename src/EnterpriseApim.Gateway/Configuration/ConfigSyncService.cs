@@ -52,8 +52,7 @@ public sealed class ConfigSyncService(
 
     private async Task ListenAsync(CancellationToken ct)
     {
-        var builder = new NpgsqlConnectionStringBuilder(
-            configuration.GetConnectionString(ServiceCollectionExtensions.ConnectionStringName))
+        var builder = new NpgsqlConnectionStringBuilder(ServiceCollectionExtensions.GetApimConnectionString(configuration))
         {
             // Detect dead connections; an idle LISTEN connection could otherwise hang silently.
             KeepAlive = 30

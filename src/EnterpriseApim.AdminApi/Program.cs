@@ -6,6 +6,13 @@ using EnterpriseApim.Core;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 
+// Command-line tasks such as "create-admin <username>" run instead of the web server.
+if (AdminCommands.IsCommand(args))
+{
+    Environment.ExitCode = await AdminCommands.RunAsync(args);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 var adminSection = builder.Configuration.GetSection(AdminOptions.Section);

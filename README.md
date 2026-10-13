@@ -118,9 +118,13 @@ docker compose up --build     # .env sets COMPOSE_PROFILES=postgres
 
 PostgreSQL runs under the `postgres` [Compose profile](https://docs.docker.com/compose/how-tos/profiles/). `.env.example` turns it on with `COMPOSE_PROFILES=postgres`; without that line, pass `--profile postgres`. To use your own database, leave the profile off and set `APIM_DB_CONNECTION` in `.env` to its connection string.
 
-1. Open the admin console at http://localhost:5080 and sign in as `admin` with the password from `.env` (`local-dev-password-change-me` by default). You're asked to choose a new password first.
-2. Open **Contoso Ltd** (a demo client) and choose **Issue key**. Give it the scope `orders.read`. Copy the key; it's shown once.
-3. Call the gateway:
+1. Create your admin console account. You're asked for a password (at least 12 characters, not containing the username):
+   ```bash
+   docker compose exec admin dotnet EnterpriseApim.AdminApi.dll create-admin admin
+   ```
+2. Open the admin console at http://localhost:5080 and sign in with that account.
+3. Open **Contoso Ltd** (a demo client) and choose **Issue key**. Give it the scope `orders.read`. Copy the key; it's shown once.
+4. Call the gateway:
 
 ```bash
 curl http://localhost:8080/public/status                          # public, no key
@@ -147,7 +151,11 @@ npm install
 npm run dev                                                 # :5173, proxies /api to :5080
 ```
 
-Development settings live in each project's `appsettings.Development.json`. On a new database the admin API creates the user `admin` with password `local-dev-password-change-me`.
+Development settings live in each project's `appsettings.Development.json`. Create your admin console account once per database:
+
+```bash
+dotnet run --project src/EnterpriseApim.AdminApi -- create-admin admin
+```
 
 ### Database migrations
 
@@ -220,7 +228,14 @@ dotnet ef migrations has-pending-model-changes $EF    # fails if the model chang
 ### Admin sign-in
 The console uses username and password sign-in with a session cookie, so there's no token for the browser to store or leak.
 
-- **First admin:** when the database has no admin users, the admin API creates one from `Admin:BootstrapUsername` and `Admin:BootstrapPassword`. That account must choose a new password at first sign-in. After that the bootstrap settings are ignored and can be removed. The admin API won't start if there are no admin users and no bootstrap settings.
+- **First admin:** the admin API never creates accounts by itself; while there are none, it logs a reminder at startup. Create the first one with the `create-admin` command, which uses the admin API's own configuration (connection string) and applies pending migrations first:
+  ```bash
+  docker compose exec admin dotnet EnterpriseApim.AdminApi.dll create-admin <username>        # Docker
+  dotnet run --project src/EnterpriseApim.AdminApi -- create-admin <username>                 # local
+  dotnet EnterpriseApim.AdminApi.dll create-admin <username>                                  # published app
+  ```
+  It asks for the password at a hidden prompt, so it never appears in configuration, the process list or shell history. To script it, pipe the password on standard input instead, for example `printf '%s\n' "$PASSWORD" | docker compose exec -T admin dotnet EnterpriseApim.AdminApi.dll create-admin admin`.
+- **Locked out:** if every admin is locked, disabled or has forgotten their password, run the same command with `--reset` for an existing username. It sets a new password, unlocks and enables the account, and ends its sessions.
 - **More admins:** add them under **Admin users** with a temporary password, which they replace at first sign-in. Every admin can add, disable, unlock, reset and delete other admins. Nobody can disable or delete themselves, so one active admin always remains.
 - **Passwords** are at least 12 characters, can't contain the username, and are stored as salted PBKDF2 hashes (ASP.NET Core Identity's `PasswordHasher`).
 - **Sessions** end on sign-out, after `Admin:SessionIdleMinutes` without activity, or `Admin:SessionMaxHours` after sign-in. They also end immediately when the user's password is changed or reset, or the user is disabled or deleted.
@@ -275,8 +290,6 @@ Per client (all of its keys together), set in the console. Requests without a va
 | Setting | Project | Default | Notes |
 |---|---|---|---|
 | `ConnectionStrings:Apim` | Gateway, Admin | none | PostgreSQL connection string |
-| `Admin:BootstrapUsername` | Admin | none | First admin account, created only when there are no admin users |
-| `Admin:BootstrapPassword` | Admin | none | Its temporary password, 12+ characters |
 | `Admin:SessionIdleMinutes` | Admin | `60` | Sign out after this long without activity |
 | `Admin:SessionMaxHours` | Admin | `12` | Sign out this long after sign-in, however active |
 | `Admin:MaxFailedSignIns` | Admin | `5` | Failed sign-ins in a row before the account locks |
@@ -298,4 +311,4 @@ Environment variables use double underscores, for example `Gateway__KnownProxies
 - **Terminate TLS** in front of the gateway, and set `Gateway:KnownProxies` so IP allowlists and per-IP limits see real client addresses.
 - **Isolate backends** so only the gateway can reach them.
 - **PgBouncer:** `LISTEN` needs a session-level connection. If you use PgBouncer in transaction mode, point the gateway at PostgreSQL directly, or rely on the periodic refresh alone.
-- **Secrets:** put the connection string and bootstrap password in a secret store, not in `appsettings` files. Remove the bootstrap settings once the first admin has signed in.
+- **Secrets:** put the connection string in a secret store, not in `appsettings` files.
