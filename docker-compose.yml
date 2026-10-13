@@ -1,0 +1,63 @@
+# Full stack: PostgreSQL, gateway, admin API + console, and a sample backend.
+#   docker compose --profile postgres up --build   # with the bundled PostgreSQL
+#   docker compose up --build                      # with your own database (set APIM_DB_CONNECTION)
+# Gateway:        http://localhost:8080
+# Admin console:  http://localhost:5080
+services:
+  postgres:
+    image: postgres:17-alpine
+    profiles: [postgres]
+    environment:
+      POSTGRES_DB: apim
+      POSTGRES_USER: apim
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apim-dev-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apim -d apim"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  admin:
+    build:
+      context: .
+      dockerfile: src/EnterpriseApim.AdminApi/Dockerfile
+    environment:
+      ConnectionStrings__Apim: ${APIM_DB_CONNECTION:-Host=postgres;Database=apim;Username=apim;Password=${POSTGRES_PASSWORD:-apim-dev-password}}
+      Admin__BootstrapUsername: ${APIM_ADMIN_USERNAME:-admin}
+      Admin__BootstrapPassword: ${APIM_ADMIN_PASSWORD:-local-dev-password-change-me}
+      Apim__SeedDemo: "true"
+      Apim__DemoBackendUrl: http://sample-backend:8080/
+    ports:
+      - "5080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  gateway:
+    build:
+      context: .
+      dockerfile: src/EnterpriseApim.Gateway/Dockerfile
+    environment:
+      ConnectionStrings__Apim: ${APIM_DB_CONNECTION:-Host=postgres;Database=apim;Username=apim;Password=${POSTGRES_PASSWORD:-apim-dev-password}}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+      admin:
+        condition: service_started
+
+  # Not published to the host: only reachable through the gateway.
+  sample-backend:
+    build:
+      context: .
+      dockerfile: samples/EnterpriseApim.SampleBackend/Dockerfile
+
+volumes:
+  pgdata:

@@ -1,0 +1,24 @@
+### Try the gateway (VS Code REST Client, Rider, or Visual Studio)
+# 1. Sign in to the admin console, open Contoso Ltd, issue a key with scope orders.read.
+# 2. Paste the key below.
+
+@gateway = http://localhost:8080
+@key = apim_REPLACE_WITH_YOUR_KEY
+
+### Public route: no key needed
+GET {{gateway}}/public/status
+
+### No key: 401 with a problem+json body
+GET {{gateway}}/api/echo/hello
+
+### Valid key: the backend echoes what it received (tenant ID, no raw key)
+GET {{gateway}}/api/echo/hello?x=1
+X-Api-Key: {{key}}
+Authorization: Bearer user-token-from-your-auth-service
+
+### Scoped route: 403 unless the key has orders.read
+GET {{gateway}}/api/orders/42
+X-Api-Key: {{key}}
+
+### Readiness: shows how many routes are loaded
+GET {{gateway}}/health/ready

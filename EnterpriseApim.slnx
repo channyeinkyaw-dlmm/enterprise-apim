@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EnterpriseApim.Core/EnterpriseApim.Core.csproj" />
+    <Project Path="src/EnterpriseApim.Gateway/EnterpriseApim.Gateway.csproj" />
+    <Project Path="src/EnterpriseApim.AdminApi/EnterpriseApim.AdminApi.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/EnterpriseApim.SampleBackend/EnterpriseApim.SampleBackend.csproj" />
+  </Folder>
+</Solution>
